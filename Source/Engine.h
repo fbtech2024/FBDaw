@@ -30,8 +30,6 @@ private:
     juce::AudioProcessor& proc;
 };
 
-
-
 class Track
 {
 public:
@@ -42,22 +40,19 @@ public:
     float gain = 1.0f, pan = 0.0f, lastLevel = 0.0f;
     bool mute = false, solo = false, armed = false;
 
-    // --- sorgenti ---
-    juce::AudioTransportSource player;                      // tracce audio (file)
-    juce::AudioFormatReaderSource* readerSource = nullptr;  // owned da player
+    juce::AudioTransportSource player;
+    juce::AudioFormatReaderSource* readerSource = nullptr;
     juce::TimeSliceThread readerThread { "readahead" };
 
-    // --- MIDI ---
-    juce::MidiMessageSequence midi;                          // eventi (secondi)
-    double nextEventTime = 0.0;                              // posizione lettura seq.
+    juce::MidiMessageSequence midi;
+    double nextEventTime = 0.0;
 
-    // --- plugin ---
-    std::unique_ptr<juce::AudioPluginInstance> instrument;   // VSTi (tracce MIDI)
-    std::vector<std::unique_ptr<juce::AudioPluginInstance>> fx;  // catena effetti
+    std::unique_ptr<juce::AudioPluginInstance> instrument;
+    std::vector<std::unique_ptr<juce::AudioPluginInstance>> fx;
 
     void loadFile (const juce::File& f, juce::AudioFormatManager& fm);
     void render (juce::AudioBuffer<float>& out, juce::MidiBuffer& mb,
-                 double posSec, double sr, int blockSize);  // scrive SEMPRE da sample 0
+                 double posSec, double sr, int blockSize);
     void prepare (double sr, int blockSize);
     double fileLength() const { return readerSource ? readerSource->getTotalLength() / srStored : 0.0; }
     juce::AudioThumbnail& thumb();
@@ -89,9 +84,8 @@ public:
     void prepareToPlay (int samplesPerBlockExpected, double newSampleRate);
     void releaseResources();
 
-    void handleIncomingMidi (juce::MidiInput* source, const juce::MidiMessage& msg) override;
+    void handleIncomingMidiMessage (juce::MidiInput* source, const juce::MidiMessage& msg) override;
 
-    // trasporto
     void play();
     void stop();
     bool isPlaying() const { return playing; }
@@ -101,13 +95,11 @@ public:
     void setPosition (double sec);
     double getLength() const;
 
-    // tracce
     Track* addTrack (const juce::String& name, bool midi);
     void removeTrack (Track* t);
     juce::OwnedArray<Track>& getTracks() { return tracks; }
     void loadFileOnTrack (Track& t, const juce::File& f) { t.loadFile (f, audioFormatManager); }
 
-    // plugin
     juce::KnownPluginList& getPluginList() { return pluginList; }
     juce::AudioPluginFormatManager& getFormatManager() { return formatManager; }
     void scanDefaultVst3Folders();
@@ -115,11 +107,9 @@ public:
     juce::AudioPluginInstance* addFxToTrack (Track&, const juce::PluginDescription&);
     juce::PluginWindow* windowForPlugin (juce::AudioProcessor&, juce::String title);
 
-    // registrazione audio (microfono) -> file WAV
     void startAudioRecording();
     void stopAudioRecordingAndAttach (Track& target);
 
-    // registrazione MIDI -> sequenza della traccia armata
     void startMidiRecording();
     void stopMidiRecording();
 
@@ -142,14 +132,13 @@ private:
     juce::AudioBuffer<float> trackBuffer;
     juce::MidiBuffer midiScratch;
 
-    // audio recorder
     juce::File lastRecording;
     std::unique_ptr<juce::AudioFormatWriter::ThreadedWriter> writer;
     std::unique_ptr<juce::FileOutputStream> recStream;
     juce::WavAudioFormat wavFormat;
     juce::CriticalSection recLock;
 
-    juce::OwnedArray<juce::PluginWindow> pluginWindows;
+    juce::OwnedArray<PluginWindow> pluginWindows;
 
     void processBlockInternal (juce::AudioBuffer<float>& out, int numSamples);
 };
