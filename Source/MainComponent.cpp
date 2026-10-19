@@ -82,13 +82,12 @@ void MainComponent::showPluginMenu (Track& t, bool forInstrument)
                    });
     }
     if (list.getTypes().isEmpty())
-        m.addItem ("Nessun VST3 trovato in C:\Program Files\Common Files\VST3", false, false, [] {});
+        m.addItem ("Nessun VST3 trovato in C:/Program Files/Common Files/VST3", false, false, [] {});
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this));
 }
 
 void MainComponent::rebuildViews()
 {
-    // ---- vista arrangiamento ----
     arrangeContent.removeAllChildren();
     lanes.clear();
     int y = 0;
@@ -101,7 +100,6 @@ void MainComponent::rebuildViews()
     }
     arrangeContent.setSize (8000, y);
 
-    // ---- vista mixer ----
     strips.clear();
     mixerContent.removeAllChildren();
     int x = 0;
@@ -119,12 +117,10 @@ void MainComponent::rebuildViews()
 void MainComponent::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colour (0xff1e1e20));
-    // playhead nella vista arrangiamento
     double pos = engine.getPosition();
-    auto r = arrangeView.getViewArea();
-    float x = arrangeView.getViewPositionX() + (float) (pos * pxPerSec);
+    float x = (float) (pos * pxPerSec) - (float) arrangeView.getViewPositionX();
     g.setColour (juce::Colours::red);
-    g.drawLine (x, (float) r.getY(), x, (float) r.getBottom(), 2.0f);
+    g.drawLine (x, 0.0f, x, (float) arrangeView.getMaximumVisibleHeight(), 2.0f);
 }
 
 void MainComponent::resized()
@@ -212,13 +208,18 @@ void MainComponent::buttonClicked (juce::Button* bt)
     {
         auto* t = engine.addTrack ("Audio " + juce::String (engine.getTracks().size() + 1), false);
         rebuildViews();
-        juce::FileChooser fc ("Apri file audio", lastAudioDir, "*.wav;*.aiff;*.mp3;*.flac");
-        if (fc.browseForFileToOpen())
-        {
-            auto f = fc.getResult();
-            lastAudioDir = f.getParentDirectory();
-            engine.loadFileOnTrack (*t, f);
-        }
+        auto fc = std::make_shared<juce::FileChooser> (
+            "Apri file audio", lastAudioDir, "*.wav;*.aiff;*.mp3;*.flac");
+        fc->launchAsync (juce::FileBrowserComponent::openMode
+                             | juce::FileBrowserComponent::canSelectFiles,
+                         [this, t, fc] (const juce::FileChooser& fch)
+                         {
+                             auto f = fch.getResult();
+                             if (! f.existsAsFile()) return;
+                             lastAudioDir = f.getParentDirectory();
+                             engine.loadFileOnTrack (*t, f);
+                             timelineRefresh();
+                         });
     }
     else if (bt == &btnAddMidi)
     {
@@ -228,16 +229,26 @@ void MainComponent::buttonClicked (juce::Button* bt)
     else if (bt == &btnExport)
     {
         engine.stop();
-        juce::FileChooser fc ("Esporta mix WAV", juce::File::getSpecialLocation (juce::File::userDesktopDirectory), "*.wav");
-        if (fc.browseForFileToSave (true))
-        {
-            juce::File out = fc.getResult().withFileExtension ("wav");
-            if (engine.exportToWav (out, [] (double) {}))
-                lblStatus.setText ("Mix esportato: " + out.getFullPathName(), juce::dontSendNotification);
-            else
-                lblStatus.setText ("Export fallito: progetto vuoto?", juce::dontSendNotification);
-        }
+        auto fc = std::make_shared<juce::FileChooser> (
+            "Esporta mix WAV", juce::File::getSpecialLocation (juce::File::userDesktopDirectory), "*.wav");
+        fc->launchAsync (juce::FileBrowserComponent::saveMode
+                             | juce::FileBrowserComponent::warnAboutOverwriting,
+                         [this, fc] (const juce::FileChooser& fch)
+                         {
+                             auto out = fch.getResult();
+                             if (out == juce::File()) return;
+                             out = out.withFileExtension ("wav");
+                             if (engine.exportToWav (out, [] (double) {}))
+                                 lblStatus.setText ("Mix esportato: " + out.getFullPathName(), juce::dontSendNotification);
+                             else
+                                 lblStatus.setText ("Export fallito: progetto vuoto?", juce::dontSendNotification);
+                         });
     }
+}
+
+void MainComponent::timelineRefresh()
+{
+    arrangeContent.repaint();
 }
 
 } // namespace fbd
