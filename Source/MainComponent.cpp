@@ -68,21 +68,31 @@ void MainComponent::showPluginMenu (Track& t, bool forInstrument)
     int i = 1;
     for (auto& desc : list.getTypes())
     {
-        m.addItem (i++, desc.name + "  (" + desc.pluginFormatName + ")",
-                   true, false,
-                   [this, &t, desc, forInstrument]
-                   {
-                       auto* inst = forInstrument
-                           ? engine.loadInstrumentOnTrack (t, desc)
-                           : engine.addFxToTrack (t, desc);
-                       if (inst != nullptr)
-                           engine.windowForPlugin (*inst, desc.name);
-                       else
-                           lblStatus.setText ("Errore caricamento plugin", juce::dontSendNotification);
-                   });
+        juce::PopupMenu::Item item;
+        item.itemID = i++;
+        item.text = desc.name + "  (" + desc.pluginFormatName + ")";
+        item.isEnabled = true;
+        item.isTicked = false;
+        item.action = [this, &t, desc, forInstrument]
+        {
+            auto* inst = forInstrument
+                ? engine.loadInstrumentOnTrack (t, desc)
+                : engine.addFxToTrack (t, desc);
+            if (inst != nullptr)
+                engine.windowForPlugin (*inst, desc.name);
+            else
+                lblStatus.setText ("Errore caricamento plugin", juce::dontSendNotification);
+        };
+        m.addItem (item);
     }
     if (list.getTypes().isEmpty())
-        m.addItem ("Nessun VST3 trovato in C:/Program Files/Common Files/VST3", false, false, [] {});
+    {
+        juce::PopupMenu::Item none;
+        none.itemID = 1;
+        none.text = "Nessun VST3 trovato in C:/Program Files/Common Files/VST3";
+        none.isEnabled = false;
+        m.addItem (none);
+    }
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this));
 }
 
