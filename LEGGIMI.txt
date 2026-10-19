@@ -1,0 +1,88 @@
+FBDaw - DAW nativa per Windows (C++ / JUCE)
+============================================
+
+Cosa e'
+-------
+Una DAW desktop vera, compilata in C++ con il framework JUCE
+(lo stesso usato da Ableton Live, Tracktion, Native Instruments).
+
+Funzioni incluse in questa versione 0.1
+---------------------------------------
+- Tracce AUDIO: import WAV / AIFF / MP3 / FLAC, waveform sulla timeline
+- Tracce MIDI: registrazione da tastiera/controller, riproduzione
+- Plugin VST3 reali:
+  * strumenti virtuali (VSTi) caricabili sulle tracce MIDI
+  * effetti caricabili in catena sulle tracce audio
+  * finestra editor di ogni plugin, come in Logic/Ableton
+  * scansione automatica della cartella VST3 standard di Windows
+- Registrazione audio dal microfono/scheda (ingresso vero, WAV 16 bit)
+- Mixer a strisce: volume, pan, Mute, Solo, Armatura REC, LED livello
+- Vista arrangiamento + vista mixer insieme (layout tipo Ableton)
+- Trasporto: REC / Play / Stop / Torna-inizio, display posizione
+- Export del mix in WAV (render offline)
+- Selezione dell'ingresso MIDI dal menu a tendina
+
+METODO CONSIGLIATO: .exe compilato in automatico sul cloud (NESSUNA COMPILAZIONE)
+--------------------------------------------------------------------------------
+1) Crea un account GRATUITO su https://github.com
+2) Clicca "New repository" (nome: FBDaw, pubblico), poi "uploading an existing file"
+3) Trascina TUTTO il contenuto della cartella FBDaw (sorgenti + .github + CMakeLists.txt)
+4) Vai sulla scheda "Actions": la compilazione parte DA SOLA (circa 15 minuti)
+5) Quando finisce (spunta verde), apri il lavoro "Build FBDaw Windows"
+   -> sezione "Artifacts" -> scarica FBDaw-Windows.zip -> dentro c'e' FBDaw.exe
+Nota: l'account JUCE NON serve con questo metodo (JUCE viene scaricato
+automaticamente dai server GitHub durante la compilazione).
+
+Come si compila in locale (alternativa, per chi ha Visual Studio)
+-----------------------------------------------------------------
+0) Prerequisiti (una sola volta):
+   a) Visual Studio 2022 Community, gratis:
+      https://visualstudio.microsoft.com/it/
+      -> durante l'installazione spunta "Sviluppo per desktop con C++"
+   b) CMake (Windows x64 installer):
+      https://cmake.org/download/
+      -> spunta "Add CMake to the system PATH"
+   c) JUCE 8.x (account gratuito su https://juce.com/):
+      -> scompatta la cartella "JUCE" DENTRO la cartella FBDaw,
+         in modo che esista FBDaw\JUCE\CMakeLists.txt
+
+1) Doppio clic su BUILD_WINDOWS.bat
+   (configura e compila tutto da solo; la prima volta 5-15 minuti)
+
+2) Avvia:  build\FBDaw_artefacts\Release\FBDaw.exe
+
+Come si usa
+-----------
+- "+ Audio" / "+ MIDI": aggiungono tracce
+- su ogni striscia del mixer: "VSTi" carica uno strumento (tracce MIDI),
+  "FX" carica un effetto; si apre la finestra del plugin
+- il pulsante "●" armi la traccia per la registrazione;
+  il grande "● REC" in alto avvia REC (audio e/o MIDI insieme)
+- menu a tendina in alto: scegli la tastiera/controller MIDI
+- "Export WAV": salva il mix completo (con plugin attivi)
+
+Dove finiscono le registrazioni
+-------------------------------
+Documenti/Musica/FBDaw_Recordings/take_AAAAMMGG_HHMMSS.wav
+
+Note tecniche / limiti attuali (roadmap)
+----------------------------------------
+- Il codice non e' stato compilato sul computer di sviluppo
+  (nessun Windows disponibile): alla prima build possono uscire
+  errori di API JUCE. Sono errori normali e si correggono in
+  pochi minuti: copia l'errore e incollalo nella chat.
+- Niente piano roll / editor MIDI grafico (i MIDI si registrano e suonano)
+- Niente split/fade/stretch delle clip, niente automation curve
+- Una sola posizione per clip (start), una catena FX semplice
+- Scansione VST3 sincrona all'avvio (con tanti plugin rallenta
+  il primo avvio; si puo' rendere asincrona in seguito)
+
+Architettura dei sorgenti
+-------------------------
+Source/Main.cpp            avvio applicazione JUCE
+Source/Engine.h            Track (clip, MIDI, catena plugin, VSTi)
+                           Engine (callback audio, registrazione, export)
+Source/Engine.cpp          implementazione motore
+Source/MainComponent.h/.cpp interfaccia: trasporto, timeline, mixer
+CMakeLists.txt             build system
+BUILD_WINDOWS.bat          compilazione automatica con controlli
