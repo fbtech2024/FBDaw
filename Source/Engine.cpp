@@ -3,7 +3,6 @@
 namespace fbd
 {
 
-//==============================================================================
 void Track::loadFile (const juce::File& f, juce::AudioFormatManager& fm)
 {
     if (auto* reader = fm.createReaderFor (f))
@@ -28,8 +27,11 @@ void Track::ensureThumb()
 
 juce::AudioThumbnail& Track::thumb()
 {
-    if (thumbnail == nullptr) { thumbCache = std::make_unique<juce::AudioThumbnailCache> (8);
-                                thumbnail = std::make_unique<juce::AudioThumbnail> (256, *fmPtr, *thumbCache); }
+    if (thumbnail == nullptr)
+    {
+        thumbCache = std::make_unique<juce::AudioThumbnailCache> (8);
+        thumbnail = std::make_unique<juce::AudioThumbnail> (256, *fmPtr, *thumbCache);
+    }
     return *thumbnail;
 }
 
@@ -56,7 +58,6 @@ void Track::render (juce::AudioBuffer<float>& out, juce::MidiBuffer& mb,
 
     if (isMidi)
     {
-        // pianifica gli eventi MIDI che cadono nel blocco [posSec, posSec + durata)
         double blockDur = out.getNumSamples() / srStored;
         for (int i = 0; i < midi.getNumEvents(); ++i)
         {
@@ -78,20 +79,17 @@ void Track::render (juce::AudioBuffer<float>& out, juce::MidiBuffer& mb,
         player.getNextAudioBlock (info);
     }
 
-    // catena effetti
     juce::MidiBuffer empty;
     for (auto& f : fx)
         if (f != nullptr) f->processBlock (out, empty);
 }
 
-//==============================================================================
 Engine::Engine()
 {
     audioFormatManager.registerBasicFormats();
     formatManager.addDefaultFormats();
     deviceManager.initialise (2, 2, nullptr, true);
     deviceManager.addAudioCallback (this);
-    player.setSource (this);
     scanDefaultVst3Folders();
 }
 
@@ -130,7 +128,6 @@ void Engine::audioDeviceIOCallbackWithContext (const float* const* inputChannelD
     juce::AudioBuffer<float> out (outputChannelData, numOutputChannels, 0, numSamples);
     processBlockInternal (out, numSamples);
 
-    // registrazione: scrive l'INPUT del microfono, non il mix
     juce::ScopedLock sl (recLock);
     if (writer != nullptr && numInputChannels > 0 && inputChannelData != nullptr)
     {
@@ -184,18 +181,17 @@ void Engine::processBlockInternal (juce::AudioBuffer<float>& out, int numSamples
     if (playing)
     {
         position += blockDur;
-        if (position >= getLength() && getLength() > 0.0) position = 0.0; // loop semplice
+        if (position >= getLength() && getLength() > 0.0) position = 0.0;
     }
-
 }
 
-//==============================================================================
 void Engine::play()
 {
     if (playing) return;
     playing = true;
     for (auto* t : tracks) if (! t->isMidi) t->player.start();
 }
+
 void Engine::stop()
 {
     playing = false;
@@ -204,11 +200,13 @@ void Engine::stop()
     juce::ScopedLock sl (recLock);
     writer.reset();
 }
+
 void Engine::toggleRecord()
 {
     if (! playing) { play(); recording = true; }
     else recording = ! recording;
 }
+
 double Engine::getPosition() const
 {
     for (auto* t : tracks)
@@ -216,11 +214,13 @@ double Engine::getPosition() const
             return t->player.getCurrentPosition();
     return position;
 }
+
 void Engine::setPosition (double sec)
 {
     position = sec;
     for (auto* t : tracks) if (! t->isMidi) t->player.setPosition (sec);
 }
+
 double Engine::getLength() const
 {
     double len = 0.0;
@@ -239,9 +239,9 @@ Track* Engine::addTrack (const juce::String& name, bool midi)
     tracks.add (t);
     return t;
 }
+
 void Engine::removeTrack (Track* t) { if (t != nullptr) tracks.removeObject (t); }
 
-//==============================================================================
 juce::AudioPluginInstance* Engine::loadInstrumentOnTrack (Track& t, const juce::PluginDescription& desc)
 {
     juce::String err;
@@ -272,12 +272,11 @@ juce::PluginWindow* Engine::windowForPlugin (juce::AudioProcessor& p, juce::Stri
             w->toFront (true);
             return w;
         }
-    auto* w = pluginWindows.add (new juce::PluginWindow (p, title));
+    auto* w = pluginWindows.add (new PluginWindow (p, title));
     w->toFront (true);
     return w;
 }
 
-//==============================================================================
 void Engine::startAudioRecording()
 {
     juce::ScopedLock sl (recLock);
@@ -292,64 +291,23 @@ void Engine::startAudioRecording()
         writer = std::make_unique<juce::AudioFormatWriter::ThreadedWriter> (w, scanThread, 32768);
     }
 }
+
 void Engine::stopAudioRecordingAndAttach (Track& target)
 {
     { juce::ScopedLock sl (recLock); writer.reset(); }
     if (lastRecording.existsAsFile())
         target.loadFile (lastRecording, audioFormatManager);
 }
+
 void Engine::startMidiRecording()
 {
     for (auto* t : tracks) if (t->armed && t->isMidi) t->midi.clear();
 }
+
 void Engine::stopMidiRecording()
 {
     for (auto* t : tracks)
         if (t->isMidi) t->midi.sort();
 }
-void Engine::handleIncomingMidi (juce::MidiInput*, const juce::MidiMessage& msg)
-{
-    if (! recording) return;
-    double now = getPosition();
-    for (auto* t : tracks)
-        if (t->armed && t->isMidi)
-        {
-            auto m = msg;
-            m.setTimeStamp (now + msg.getTimeStamp());
-            t->midi.addEvent (m);
-        }
-}
 
-//==============================================================================
-bool Engine::exportToWav (const juce::File& outFile, std::function<void(double)> progress)
-{
-    stop();
-    setPosition (0.0);
-
-    double len = getLength();
-    if (len <= 0.0) return false;
-
-    auto outStream = outFile.createOutputStream();
-    if (outStream == nullptr) return false;
-
-    std::unique_ptr<juce::AudioFormatWriter> writerPtr (
-        wavFormat.createWriterFor (outStream.get(), sampleRate, 2, 16, {}, 0));
-    if (writerPtr == nullptr) return false;
-    outStream.release();
-
-    play();  // avvia anche i lettori file
-    juce::AudioBuffer<float> buf (2, blockSize);
-    double totalBlocks = juce::ceil (len * sampleRate / blockSize);
-    for (long i = 0; i < (long) totalBlocks; ++i)
-    {
-        processBlockInternal (buf, blockSize);
-        writerPtr->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
-        if (progress) progress ((double) i / totalBlocks);
-        juce::Thread::sleep (1);
-    }
-    stop();
-    setPosition (0.0);
-    return true;
-}
-
-} // namespace fbd
+void Engine::
