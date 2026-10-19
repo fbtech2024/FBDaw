@@ -263,7 +263,7 @@ juce::AudioPluginInstance* Engine::addFxToTrack (Track& t, const juce::PluginDes
     return raw;
 }
 
-juce::PluginWindow* Engine::windowForPlugin (juce::AudioProcessor& p, juce::String title)
+PluginWindow* Engine::windowForPlugin (juce::AudioProcessor& p, juce::String title)
 {
     for (auto* w : pluginWindows)
         if (& w->getProcessor() == & p)
@@ -307,7 +307,51 @@ void Engine::startMidiRecording()
 void Engine::stopMidiRecording()
 {
     for (auto* t : tracks)
-        if (t->isMidi) t->midi.sort();
+        if (t->isMidi) t->midi.updateMatchedPairs();
 }
 
-void Engine::
+void Engine::handleIncomingMidiMessage (juce::MidiInput*, const juce::MidiMessage& msg)
+{
+    if (! recording) return;
+    double now = getPosition();
+    for (auto* t : tracks)
+        if (t->armed && t->isMidi)
+        {
+            auto m = msg;
+            m.setTimeStamp (now + msg.getTimeStamp());
+            t->midi.addEvent (m);
+        }
+}
+
+bool Engine::exportToWav (const juce::File& outFile, std::function<void(double)> progress)
+{
+    stop();
+    setPosition (0.0);
+
+    double len = getLength();
+    if (len <= 0.0) return false;
+
+    auto outStream = outFile.createOutputStream();
+    if (outStream == nullptr) return false;
+
+    std::unique_ptr<juce::AudioFormatWriter> writerPtr (
+        wavFormat.createWriterFor (outStream.get(), sampleRate, 2, 16, {}, 0));
+    if (writerPtr == nullptr) return false;
+    outStream.release();
+
+    play();
+    juce::AudioBuffer<float> buf (2, blockSize);
+    double totalBlocks = juce::ceil (len * sampleRate / blockSize);
+    for (long i = 0; i < (long) totalBlocks; ++i)
+    {
+        processBlockInternal (buf, blockSize);
+        writerPtr->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
+        if (progress) progress ((double) i / totalBlocks);
+        juce::Thread::sleep (1);
+    }
+    stop();
+    setPosition (0.0);
+    return true;
+}
+
+} // namespace fbd
