@@ -47,7 +47,7 @@ MainComponent::~MainComponent()
     int idx = midiInputList.getSelectedItemIndex();
     auto inputs = juce::MidiInput::getAvailableDevices();
     if (idx >= 0 && idx < inputs.size())
-        engine.deviceManager.removeMidiInputDeviceCallback (inputs[idx].identifier, this);
+        engine.deviceManager.removeMidiInputDeviceCallback (inputs[idx].identifier, &engine);
 }
 
 void MainComponent::comboBoxChanged (juce::ComboBox*)
@@ -55,7 +55,7 @@ void MainComponent::comboBoxChanged (juce::ComboBox*)
     int idx = midiInputList.getSelectedItemIndex();
     auto inputs = juce::MidiInput::getAvailableDevices();
     if (idx < 0 || idx >= inputs.size()) return;
-    engine.deviceManager.removeMidiInputDeviceCallback (inputs[idx].identifier, this);
+    engine.deviceManager.removeMidiInputDeviceCallback (inputs[idx].identifier, &engine);
     engine.deviceManager.setMidiInputEnabled (inputs[idx].identifier, true);
     engine.deviceManager.addMidiInputDeviceCallback (inputs[idx].identifier, &engine);
     lblStatus.setText ("Input MIDI: " + inputs[idx].name, juce::dontSendNotification);
@@ -153,9 +153,13 @@ void MainComponent::resized()
 void MainComponent::timerCallback()
 {
     double pos = engine.getPosition();
-    int m = (int) (pos / 60.0);
-    double s = pos - m * 60;
-    lblPos.setText (juce::String::formatted ("%02d:%05.2f", m, s), juce::dontSendNotification);
+    int minutes = (int) (pos / 60.0);
+    double seconds = pos - minutes * 60;
+    juce::String txt;
+    txt << juce::String (minutes).paddedLeft ('0', 2)
+        << ":"
+        << juce::String (seconds, 2).paddedLeft ('0', 5);
+    lblPos.setText (txt, juce::dontSendNotification);
     arrangeView.setViewPosition (juce::jmax (0, (int) (pos * pxPerSec) - arrangeView.getMaximumVisibleWidth() / 3),
                                  arrangeView.getViewPositionY());
     repaint();
