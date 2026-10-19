@@ -9,7 +9,7 @@ public:
 
     void initialise (const juce::String&) override
     {
-        mainWindow = std::make_unique<MainWindow> ("FBDaw", new MainComponent());
+        mainWindow = std::make_unique<MainWindow> ("FBDaw", new fbd::MainComponent());
     }
     void shutdown() override { mainWindow = nullptr; }
     void systemRequestedQuit() override { quit(); }
