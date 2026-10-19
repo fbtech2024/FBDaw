@@ -105,7 +105,7 @@ public:
     void scanDefaultVst3Folders();
     juce::AudioPluginInstance* loadInstrumentOnTrack (Track&, const juce::PluginDescription&);
     juce::AudioPluginInstance* addFxToTrack (Track&, const juce::PluginDescription&);
-    juce::PluginWindow* windowForPlugin (juce::AudioProcessor&, juce::String title);
+    PluginWindow* windowForPlugin (juce::AudioProcessor&, juce::String title);
 
     void startAudioRecording();
     void stopAudioRecordingAndAttach (Track& target);
