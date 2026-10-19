@@ -15,8 +15,13 @@ jobs:
       - name: Scarica JUCE
         run: git clone --depth 1 --branch 8.0.4 https://github.com/juce-framework/JUCE.git JUCE
 
-      - name: Configura con CMake (Ninja)
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Prepara compilatore Visual Studio (MSVC)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configura con CMake (Ninja + MSVC)
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl
 
       - name: Compila (Release)
         run: cmake --build build
