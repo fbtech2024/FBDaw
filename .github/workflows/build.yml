@@ -27,9 +27,11 @@ jobs:
         run: cmake --build build
 
       - name: Raccogli l'eseguibile
+        shell: pwsh
         run: |
           mkdir artefatto
-          copy "build\FBDaw_artefacts\FBDaw.exe" artefatto\
+          $exe = Get-ChildItem -Path build -Recurse -Filter FBDaw.exe | Select-Object -First 1
+          if ($exe) { Copy-Item $exe.FullName artefatto\ ; Write-Host "Trovato: $($exe.FullName)" } else { Write-Error "FBDaw.exe non trovato" }
 
       - name: Carica FBDaw.exe come download
         uses: actions/upload-artifact@v4
