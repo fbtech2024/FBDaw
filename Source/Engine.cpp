@@ -341,7 +341,7 @@ bool Engine::exportToWav (const juce::File& outFile, std::function<void(double)>
 
     play();
     juce::AudioBuffer<float> buf (2, blockSize);
-    double totalBlocks = juce::ceil (len * sampleRate / blockSize);
+    double totalBlocks = std::ceil (len * sampleRate / blockSize);
     for (long i = 0; i < (long) totalBlocks; ++i)
     {
         processBlockInternal (buf, blockSize);
