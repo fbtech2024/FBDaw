@@ -22,6 +22,7 @@ public:
     void comboBoxChanged (juce::ComboBox*) override;
 
     void showPluginMenu (Track&, bool forInstrument);
+    void timelineRefresh();
 
 private:
     Engine engine;
